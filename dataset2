@@ -1,0 +1,173 @@
+#################################Production#######################################
+
+#Load Libraries
+library(RSQLite)
+library(plyr)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(dtplyr)
+library(data.table)
+
+#Load first database
+con <- dbConnect(RSQLite::SQLite(), dbname = "C:/Users/i_hopis1/Documents/database.sqlite")
+
+#Setup tables
+matches <- tbl_df(dbGetQuery(con,"SELECT * FROM Match"))
+team <- tbl_df(dbGetQuery(con,"SELECT * FROM Team"))
+league <- tbl_df(dbGetQuery(con,"SELECT * FROM League"))
+by_league <- group_by(matches,league_id)
+
+#Select NL league
+matchesNL <- matches[matches$country_id == 13240,]
+
+#Select variables id, season, stage, date, home_team_api_id, away_team_api_id,home_team_goal, away_team_goal
+myvars <- c("id", "season", "stage","date","home_team_api_id","away_team_api_id","home_team_goal","away_team_goal")
+matchesNL <- matchesNL[myvars]
+write.csv(matchesNL, file = "matchesNL.csv", row.names = FALSE)
+
+#Add team, opponent, goals_for, goals_against, points, and home columns
+str(matchesNL)
+matchesNL$points = NA
+matchesNLHome <- matchesNL[c("id", "season", "stage","date","home_team_api_id","away_team_api_id","home_team_goal","away_team_goal","points")]
+matchesNLAway <- matchesNL[c("id", "season", "stage","date","home_team_api_id","away_team_api_id","home_team_goal","away_team_goal","points")]
+matchesNLHome$home = 1
+matchesNLAway$home = 0
+names(matchesNLHome) <- c("id", "season", "stage","date","team","opponent","goals_for","goals_against","points","home")
+names(matchesNLAway) <- c("id", "season", "stage","date","opponent","team","goals_against","goals_for","points","home")
+
+#bind tables so you get two rows per match
+matchesNL <- rbind(matchesNLHome,matchesNLAway)
+
+for (i in 1:nrow(matchesNL)){
+  if (matchesNL$goals_for[[i]] > matchesNL$goals_against[[i]]) {
+  matchesNL$points[i] <- 3
+  } else if (matchesNL$goals_for[[i]] < matchesNL$goals_against[[i]]) {
+  matchesNL$points[i] <- 0
+  } else {
+  matchesNL$points[i] <- 1 }
+}
+
+#Order database so 2 lines per match are below each other
+matchesNL <- matchesNL[order(matchesNL$id),] 
+matchesNL <- matchesNL[order(matchesNL$date),] 
+
+#Add differential table
+matchesNL$differential <- matchesNL$goals_for - matchesNL$goals_against
+
+#Write files
+write.csv(team, file = "team.csv", row.names = FALSE)
+write.csv(matchesNL, file = "my_solution.csv", row.names = FALSE)
+
+
+###########
+plot(density(matchesNL$differential[which(matchesNL$team == 8464)]))
+#############
+
+
+#In between read of test dataset
+matchesNL <- read.csv(file = "my_solution.csv")
+
+#Select team
+matchesTeams <- matchesNL[which(matchesNL$team == 8640),]
+
+#Take only two specific columns, then summarize them, then calculate proportions
+#Then bind these together and update column names
+L <- matchesTeams[c('season','points')]
+K <- table(L)
+G <- round(prop.table(K,1)*100,digits = 1)
+G
+H <- cbind(K,G)
+colnames(H) <- c("Lost","Draw","Won","L%","D%","W%")
+H  
+
+
+#Plots to show any trends in averages
+# Grouped Bar Plot
+barplot(t(G), main="Proportions per year",xlab="Year", col=c("darkblue","green","red"),beside= TRUE)
+
+#Add names to api_ID's 
+teamsNL <- distinct(select(matchesNL,home_team_api_id))
+names(teamsNL) <- "team_api_id"
+dt1 <- data.table(team, key = "team_api_id") 
+dt2 <- data.table(teamsNL, key = "team_api_id")
+teamsNL <- merge(dt1, dt2)
+
+
+#Load second database
+load("I:/3. Learning/R/engsoccerdata-master/data/holland.RDA")
+
+
+###############################Pre-Production##################################
+#Load Libraries
+library(RSQLite)
+library(plyr)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+#library(dtplyr)
+
+
+
+
+
+###############################Test area########################################
+#Load Libraries
+library(RSQLite)
+library(plyr)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+#library(dtplyr)
+
+df_a <- data.frame("a","b")
+df_b <- data.frame("a","c")
+names(df_a) <- c("X1","X2")
+names(df_b) <- c("X1","X3")
+full_join(df_a, df_b, by = "X1")
+
+a <- c(1,2,3)
+b <- c(4,5,6)
+df_a <- data.frame(a,b)
+df_b <- df_a[rep(seq_len(nrow(df_a)), each=2),]
+
+
+
+
+
+###############################################################################
+"#Create stage by stage dataset
+matchesNL
+
+homeNL <- select(matchesNL, -away_team_api_id)
+awayNL <- select(matchesNL, -home_team_api_id)
+homeNL
+awayNL
+homeNL$result
+homeNL$points <- switch(homeNL$result,1={3},2={1},3={0})
+
+
+teamsNL <- distinct(select(matchesNL,home_team_api_id))
+teamsNL
+df_table <- matrix(rep(1:34, times=8),teamsNL)
+df_table
+
+switch("bar", foo={"one"}, bar={"two"})
+
+
+
+
+matchesNL <- arrange(matchesNL,id)
+matchesNL <- spread(matchesNL,season,result)
+
+
+
+df_table
+str(df_table)
+
+teams <- NROW(sort(unique(matchesNL$home_team_api_id)))
+teams
+str(teamsNL)
+class(teamsNL)
+
+
